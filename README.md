@@ -1,4 +1,6 @@
-# xget – GitHub 加速下载与镜像切换工具
+# cnmirror-cli – GitHub 加速下载与镜像切换工具
+
+> 注：项目已重命名为 cnmirror-cli；命令脚本保持 `xget` 与 `xget-local`。
 
 一个轻量的 Bash 脚本，统一处理 GitHub 资源的加速下载、仓库克隆镜像切换、Homebrew 镜像环境变量配置以及 npm registry 切换。支持与 Cloudflare Workers 的 Xget 前缀集成，提供自动测速选择最快代理前缀的能力。
 
@@ -10,20 +12,33 @@
 - Homebrew 镜像：设置瓶子域与 Brew/Core Git 仓库的镜像地址（非持久，按会话）
 - npm registry 切换：默认使用 `npmmirror`，一键设置和恢复
 
-## 目录结构
-- `xget`：主脚本（可执行）
-- `xget.conf`：可选配置文件（与脚本同目录）
+## 两个版本
+- `xget-local`：国内镜像源本地真实使用版本（不依赖 Cloudflare），仅使用 GHProxy 与 gitclone 加速
+- `xget`：可发布到 GitHub 的完整版（支持 Xget Cloudflare 前缀、自动测速、多功能）
+
+参考的 Xget 开源项目（用于自建 Cloudflare 前缀，功能更全面）：
+- Xget 项目主页：https://github.com/xixu-me/Xget
 
 ## 安装与使用
 ```bash
-# 赋予可执行权限
-chmod +x ./xget
+### 本地版（xget-local）
+```bash
+chmod +x ./xget-local
+./xget-local
 
-# 查看帮助
+# 仅使用国内镜像加速下载/克隆
+bash ./xget-local -c 'xget_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
+bash ./xget-local -c 'xget_clone https://github.com/Homebrew/brew.git'
+```
+
+### 完整版（xget）
+```bash
+chmod +x ./xget
 ./xget
 
 # 通过 -c 执行子命令
 bash ./xget -c 'xget_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
+```
 ```
 
 ### 配置文件：`xget.conf`
@@ -36,7 +51,7 @@ export XGET_PREFIX="https://xget.example.workers.dev/"
 export XGET_BREW_MIRROR_DEFAULT="bfsu"
 ```
 
-脚本会在启动时自动加载该文件（如果存在）。也可通过环境变量 `XGET_CONF_PATH` 指定自定义路径。
+脚本会在启动时自动加载该文件（如果存在）。也可通过环境变量 `XGET_CONF_PATH` 指定自定义路径。本地版不会使用 `XGET_PREFIX`，仅依赖国内镜像。
 
 ### 常用命令示例
 ```bash
@@ -62,7 +77,7 @@ bash ./xget -c 'npm_mirror_set'
 bash ./xget -c 'npm_mirror_unset'
 ```
 
-## 与 Cloudflare Workers 的 Xget 集成
+## 与 Cloudflare Workers 的 Xget 集成（完整版）
 如果你部署了自己的 Cloudflare Worker（例如 `https://xget.example.workers.dev/`），可直接作为 `XGET_PREFIX` 使用：
 ```bash
 export XGET_PREFIX="https://xget.example.workers.dev/"
@@ -74,7 +89,7 @@ bash ./xget -c 'xget_download https://github.com/user/repo/releases/download/v1.
 - 对 `releases`、`raw`、`gist` 等路径设置合理 TTL，避免缓存过期过短或过长
 - 限速与配额管理，保护额度与成本；拒绝代理私有仓库授权请求（安全）
 
-如果需要，我可以提供最小可用的 Worker 模板代码。
+如果需要，我可以提供最小可用的 Worker 模板代码。Xget 的完整实现与技术解析可参考其仓库与文档（见上方链接）。
 
 ## 注意事项
 - 第三方镜像可能存在稳定性与隐私风险，建议仅用于拉取公开资源，不进行登录、写操作
