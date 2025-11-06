@@ -215,14 +215,14 @@ xget – GitHub 加速下载与镜像切换工具
   xget_autoselect [test_url]         对候选前缀测速并自动选择最快（更新 XGET_PREFIX）
 
 示例：
-  XGET_PREFIX="https://mirror.ghproxy.com/" bash xget -c 'xget_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
-  bash xget -c 'set_git_mirror gitclone && git clone https://github.com/Homebrew/brew.git'
-  bash xget -c 'set_brew_mirror bfsu && show_brew_env'
-  bash xget -c 'xget_autoselect'
+  XGET_PREFIX="https://mirror.ghproxy.com/" bash CN-Mirror-CLI -c 'xget_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
+  bash CN-Mirror-CLI -c 'set_git_mirror gitclone && git clone https://github.com/Homebrew/brew.git'
+  bash CN-Mirror-CLI -c 'set_brew_mirror bfsu && show_brew_env'
+  bash CN-Mirror-CLI -c 'xget_autoselect'
 EOF
 }
 
-# 支持直接执行：bash xget -c '<command>'
+# 支持直接执行：bash CN-Mirror-CLI -c '<command>'
 if [[ "${1:-}" == "-c" ]]; then
   shift
   eval "$*"

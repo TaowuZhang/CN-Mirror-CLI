@@ -15,23 +15,23 @@
 
 # CN-Mirror-CLI – GitHub 加速下载与镜像切换工具
 
-> 注：项目已重命名为 CN-Mirror-CLI；命令脚本保持 `xget` 与 `xget-local`。
+> 注：项目已重命名为 CN-Mirror-CLI；命令脚本保持 `CN-Mirror-CLI` 与 `xget-local`。
 
-> 注：项目已重命名为 cnmirror-cli；命令脚本保持 `xget` 与 `xget-local`。
+> 注：项目已重命名为 cnmirror-cli；命令脚本保持 `CN-Mirror-CLI` 与 `xget-local`。
 
 一个轻量的 Bash 脚本，统一处理 GitHub 资源的加速下载、仓库克隆镜像切换、Homebrew 镜像环境变量配置以及 npm registry 切换。支持与 Cloudflare Workers 的 Xget 前缀集成，提供自动测速选择最快代理前缀的能力。
 
 ## 特性
-- 统一入口：`xget_download`、`xget_clone`、`set_git_mirror`、`set_brew_mirror`、`npm_mirror_*`
+- 统一入口：`CN-Mirror-CLI_download`、`CN-Mirror-CLI_clone`、`set_git_mirror`、`set_brew_mirror`、`npm_mirror_*`
 - 前缀级联下载：优先使用 `XGET_PREFIX`，再尝试多组 GHProxy，最后回源
-- 自动测速：`xget_autoselect` 选择当前最快的代理前缀
+- 自动测速：`CN-Mirror-CLI_autoselect` 选择当前最快的代理前缀
 - Git 镜像重写：可切换 `gitclone` 或 `ghproxy`，并支持取消
 - Homebrew 镜像：设置瓶子域与 Brew/Core Git 仓库的镜像地址（非持久，按会话）
 - npm registry 切换：默认使用 `npmmirror`，一键设置和恢复
 
 ## 两个版本
 - `xget-local`：国内镜像源本地真实使用版本（不依赖 Cloudflare），仅使用 GHProxy 与 gitclone 加速
-- `xget`：可发布到 GitHub 的完整版（支持 Xget Cloudflare 前缀、自动测速、多功能）
+- `CN-Mirror-CLI`：可发布到 GitHub 的完整版（支持 Xget Cloudflare 前缀、自动测速、多功能）
 
 参考的 Xget 开源项目（用于自建 Cloudflare 前缀，功能更全面）：
 - Xget 项目主页：https://github.com/xixu-me/Xget
@@ -44,17 +44,17 @@ chmod +x ./xget-local
 ./xget-local
 
 # 仅使用国内镜像加速下载/克隆
-bash ./xget-local -c 'xget_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
-bash ./xget-local -c 'xget_clone https://github.com/Homebrew/brew.git'
+bash ./xget-local -c 'CN-Mirror-CLI_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
+bash ./xget-local -c 'CN-Mirror-CLI_clone https://github.com/Homebrew/brew.git'
 ```
 
-### 完整版（xget）
+### 完整版（CN-Mirror-CLI）
 ```bash
-chmod +x ./xget
-./xget
+chmod +x ./CN-Mirror-CLI
+./CN-Mirror-CLI
 
 # 通过 -c 执行子命令
-bash ./xget -c 'xget_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
+bash ./CN-Mirror-CLI -c 'CN-Mirror-CLI_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
 ```
 ```
 
@@ -73,32 +73,32 @@ export XGET_BREW_MIRROR_DEFAULT="bfsu"
 ### 常用命令示例
 ```bash
 # 1) 加速下载（优先 XGET_PREFIX → GHProxy → 回源）
-bash ./xget -c 'xget_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
+bash ./CN-Mirror-CLI -c 'CN-Mirror-CLI_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
 
 # 2) 自动选择最快代理前缀（更新环境变量 XGET_PREFIX）
-bash ./xget -c 'xget_autoselect'
+bash ./CN-Mirror-CLI -c 'CN-Mirror-CLI_autoselect'
 
 # 3) 加速克隆（优先 XGET_PREFIX，否则使用 gitclone 重写）
-bash ./xget -c 'xget_clone https://github.com/Homebrew/brew.git'
+bash ./CN-Mirror-CLI -c 'CN-Mirror-CLI_clone https://github.com/Homebrew/brew.git'
 
 # 4) 切换 Git 全局镜像重写
-bash ./xget -c 'set_git_mirror gitclone'
-bash ./xget -c 'set_git_mirror ghproxy'
-bash ./xget -c 'set_git_mirror unset'
+bash ./CN-Mirror-CLI -c 'set_git_mirror gitclone'
+bash ./CN-Mirror-CLI -c 'set_git_mirror ghproxy'
+bash ./CN-Mirror-CLI -c 'set_git_mirror unset'
 
 # 5) 设置 Homebrew 镜像（按会话）
-bash ./xget -c 'set_brew_mirror bfsu && show_brew_env'
+bash ./CN-Mirror-CLI -c 'set_brew_mirror bfsu && show_brew_env'
 
 # 6) 设置 npm registry（默认 npmmirror）
-bash ./xget -c 'npm_mirror_set'
-bash ./xget -c 'npm_mirror_unset'
+bash ./CN-Mirror-CLI -c 'npm_mirror_set'
+bash ./CN-Mirror-CLI -c 'npm_mirror_unset'
 ```
 
 ## 与 Cloudflare Workers 的 Xget 集成（完整版）
 如果你部署了自己的 Cloudflare Worker（例如 `https://xget.example.workers.dev/`），可直接作为 `XGET_PREFIX` 使用：
 ```bash
 export XGET_PREFIX="https://xget.example.workers.dev/"
-bash ./xget -c 'xget_download https://github.com/user/repo/releases/download/v1.0.0/app.tar.gz app.tar.gz'
+bash ./CN-Mirror-CLI -c 'CN-Mirror-CLI_download https://github.com/user/repo/releases/download/v1.0.0/app.tar.gz app.tar.gz'
 ```
 
 建议你的 Worker 支持：
@@ -117,11 +117,11 @@ bash ./xget -c 'xget_download https://github.com/user/repo/releases/download/v1.
 ```bash
 # 初始化 Git 仓库
 git init
-git add xget xget.conf README.md
-git commit -m "feat: init xget CLI and config"
+git add CN-Mirror-CLI xget.conf README.md
+git commit -m "feat: init CN-Mirror-CLI CLI and config"
 
 # 如果安装了 GitHub CLI（gh）且已登录，可以一键创建远程并推送
-gh repo create xget --public --source=. --remote=origin --push --confirm
+gh repo create CN-Mirror-CLI --public --source=. --remote=origin --push --confirm
 
 # 若未安装 gh，可在 GitHub 手动创建仓库，然后设置远程并推送
 git remote add origin https://github.com/<your-username>/xget.git
