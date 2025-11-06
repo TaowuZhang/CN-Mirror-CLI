@@ -1,0 +1,231 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# 可选：你的 Cloudflare Worker/Xget 前缀，例如：https://xget.example.workers.dev/
+XGET_PREFIX="${XGET_PREFIX:-}"
+
+# 配置文件加载（默认同目录 xget.conf）
+XGET_CONF_PATH="${XGET_CONF_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/xget.conf}"
+if [[ -f "$XGET_CONF_PATH" ]]; then
+  # shellcheck disable=SC1090
+  source "$XGET_CONF_PATH"
+fi
+
+# GHProxy 前缀列表（按优先级）
+GH_PROXY_LIST=(
+  "https://mirror.ghproxy.com/"
+  "https://gh.api.99988866.xyz/"
+)
+
+# Homebrew 瓶子及 Git 仓库镜像地址
+BOTTLE_MIRRORS_TUNA="https://mirrors.tuna.tsinghua.edu.cn/homebrew-bottles"
+BOTTLE_MIRRORS_USTC="https://mirrors.ustc.edu.cn/homebrew-bottles"
+BOTTLE_MIRRORS_BFSU="https://mirrors.bfsu.edu.cn/homebrew-bottles"
+
+BREW_GIT_TUNA="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/brew.git"
+CORE_GIT_TUNA="https://mirrors.tuna.tsinghua.edu.cn/git/homebrew/homebrew-core.git"
+BREW_GIT_USTC="https://mirrors.ustc.edu.cn/homebrew/brew.git"
+CORE_GIT_USTC="https://mirrors.ustc.edu.cn/homebrew/homebrew-core.git"
+BREW_GIT_BFSU="https://mirrors.bfsu.edu.cn/homebrew/brew.git"
+CORE_GIT_BFSU="https://mirrors.bfsu.edu.cn/homebrew/homebrew-core.git"
+
+function log() { echo "[$(date '+%H:%M:%S')] $*"; }
+
+function _proxy_url() {
+  local prefix="$1"; local url="$2"
+  # GHProxy 风格：前缀直接拼接原始 URL
+  printf "%s%s" "$prefix" "$url"
+}
+
+# 按优先级尝试下载（支持 GitHub release/raw/gist 等）
+function xget_download() {
+  if [[ $# -lt 1 ]]; then
+    echo "Usage: xget_download <url> [dest]"
+    return 2
+  fi
+  local url="$1"
+  local dest="${2:-}"
+  # 自动推断文件名
+  if [[ -z "$dest" ]]; then
+    dest="$(basename "${url%%\?*}")"
+    [[ -z "$dest" || "$dest" == "/" ]] && dest="download.bin"
+  fi
+  local tried=()
+  # 构建前缀列表
+  local prefixes=()
+  if [[ -n "$XGET_PREFIX" ]]; then
+    prefixes+=("$XGET_PREFIX")
+  fi
+  prefixes+=("${GH_PROXY_LIST[@]}")
+  prefixes+=("") # 直接回源作为末位兜底
+  for p in "${prefixes[@]}"; do
+    local try_url="$url"
+    if [[ -n "$p" ]]; then
+      try_url="$(_proxy_url "$p" "$url")"
+    fi
+    tried+=("$try_url")
+    log "GET $try_url -> $dest"
+    if curl -fL --connect-timeout 10 --retry 3 --retry-delay 1 -o "$dest" "$try_url"; then
+      log "OK: $dest"
+      return 0
+    else
+      log "FAIL: $try_url"
+    fi
+  done
+  log "All attempts failed:"
+  printf '%s\n' "${tried[@]}" >&2
+  return 1
+}
+
+# 前缀测速并自动选择最快
+function xget_autoselect() {
+  local test_url="${1:-https://raw.githubusercontent.com/octocat/Hello-World/master/README}"
+  local candidates=()
+  if [[ -n "$XGET_PREFIX" ]]; then candidates+=("$XGET_PREFIX"); fi
+  candidates+=("${GH_PROXY_LIST[@]}")
+  candidates+=("")
+  local best_prefix=""; local best_time=""; local line=""
+  for p in "${candidates[@]}"; do
+    local u="$test_url"
+    if [[ -n "$p" ]]; then u="$(_proxy_url "$p" "$test_url")"; fi
+    local t
+    t=$(curl -w '%{time_total}' -o /dev/null -s -L --connect-timeout 5 --retry 1 "$u" || echo "inf")
+    line=$(printf "%s\t%s" "${p:-<origin>}" "$t")
+    log "probe: $line"
+    if [[ "$t" != "inf" ]]; then
+      if [[ -z "$best_time" ]] || awk "BEGIN{exit !($t < $best_time)}"; then
+        best_time="$t"
+        best_prefix="$p"
+      fi
+    fi
+  done
+  if [[ -n "$best_prefix" ]]; then
+    export XGET_PREFIX="$best_prefix"
+    log "Selected prefix: ${best_prefix:-<origin>} (time=$best_time)"
+    return 0
+  else
+    log "No reachable prefix; keep origin"
+    return 1
+  fi
+}
+
+# 克隆 GitHub 仓库（优先 XGET_PREFIX，其次 gitclone）
+function xget_clone() {
+  if [[ $# -lt 1 ]]; then
+    echo "Usage: xget_clone <https_repo_url> [args...]"
+    echo "Example: xget_clone https://github.com/tendermint/tendermint.git"
+    return 2
+  fi
+  local repo="$1"; shift || true
+  local mirror_repo="$repo"
+  if [[ -n "$XGET_PREFIX" ]]; then
+    mirror_repo="$(_proxy_url "$XGET_PREFIX" "$repo")"
+  else
+    mirror_repo="${repo/https:\/\/github.com\//https:\/\/gitclone.com\/github.com\/}"
+  fi
+  log "git clone $mirror_repo $*"
+  GIT_TRACE=1 git clone "$mirror_repo" "$@"
+}
+
+# 设置/取消 Git 镜像重写
+function set_git_mirror() {
+  local scheme="${1:-gitclone}"
+  case "$scheme" in
+    gitclone)
+      git config --global url."https://gitclone.com/github.com/".insteadof "https://github.com/"
+      log "Git mirror set: github.com -> gitclone.com/github.com/"
+      ;;
+    ghproxy)
+      git config --global url."https://mirror.ghproxy.com/https://github.com/".insteadof "https://github.com/"
+      log "Git mirror set: github.com -> mirror.ghproxy.com/https://github.com/"
+      ;;
+    unset)
+      git config --global --unset-all url."https://gitclone.com/github.com/".insteadof || true
+      git config --global --unset-all url."https://mirror.ghproxy.com/https://github.com/".insteadof || true
+      log "Git mirrors unset."
+      ;;
+    *)
+      echo "Usage: set_git_mirror [gitclone|ghproxy|unset]"
+      return 2
+      ;;
+  esac
+}
+
+# 设置 Homebrew 镜像环境变量（非持久）
+function set_brew_mirror() {
+  local site="${1:-bfsu}"
+  case "$site" in
+    tuna)
+      export HOMEBREW_BOTTLE_DOMAIN="$BOTTLE_MIRRORS_TUNA"
+      export HOMEBREW_BREW_GIT_REMOTE="$BREW_GIT_TUNA"
+      export HOMEBREW_CORE_GIT_REMOTE="$CORE_GIT_TUNA"
+      ;;
+    ustc)
+      export HOMEBREW_BOTTLE_DOMAIN="$BOTTLE_MIRRORS_USTC"
+      export HOMEBREW_BREW_GIT_REMOTE="$BREW_GIT_USTC"
+      export HOMEBREW_CORE_GIT_REMOTE="$CORE_GIT_USTC"
+      ;;
+    bfsu|default)
+      export HOMEBREW_BOTTLE_DOMAIN="$BOTTLE_MIRRORS_BFSU"
+      export HOMEBREW_BREW_GIT_REMOTE="$BREW_GIT_BFSU"
+      export HOMEBREW_CORE_GIT_REMOTE="$CORE_GIT_BFSU"
+      ;;
+    *)
+      echo "Usage: set_brew_mirror [tuna|ustc|bfsu]"
+      return 2
+      ;;
+  esac
+  log "Homebrew mirrors: BOTTLE=$HOMEBREW_BOTTLE_DOMAIN"
+  log "Homebrew BREW_GIT=$HOMEBREW_BREW_GIT_REMOTE"
+  log "Homebrew CORE_GIT=$HOMEBREW_CORE_GIT_REMOTE"
+}
+
+function show_brew_env() {
+  env | grep -E 'HOMEBREW_(BOTTLE_DOMAIN|BREW_GIT_REMOTE|CORE_GIT_REMOTE)' || true
+}
+
+# npm 镜像（可选）
+function npm_mirror_set() {
+  local registry="${1:-https://registry.npmmirror.com}"
+  npm config set registry "$registry"
+  log "npm registry set: $(npm config get registry)"
+}
+
+function npm_mirror_unset() {
+  npm config delete registry
+  log "npm registry restored: $(npm config get registry)"
+}
+
+function usage() {
+  cat <<'EOF'
+xget – GitHub 加速下载与镜像切换工具
+
+环境变量：
+  XGET_PREFIX         自定义代理前缀（例如你的 Cloudflare Worker），如：https://xget.example.workers.dev/
+  XGET_CONF_PATH      配置文件路径，默认与脚本同目录的 xget.conf
+
+命令：
+  xget_download <url> [dest]         逐级尝试代理前缀下载 GitHub 资源
+  xget_clone <repo_url> [args...]    优先使用 XGET_PREFIX，其次使用 gitclone 加速克隆
+  set_git_mirror [gitclone|ghproxy|unset]
+  set_brew_mirror [tuna|ustc|bfsu]   设置 Homebrew 镜像相关环境变量（非持久）
+  show_brew_env                      查看当前 Homebrew 镜像环境变量
+  npm_mirror_set [registry_url]      设置 npm registry（默认 npmmirror）
+  npm_mirror_unset                   恢复 npm registry
+  xget_autoselect [test_url]         对候选前缀测速并自动选择最快（更新 XGET_PREFIX）
+
+示例：
+  XGET_PREFIX="https://mirror.ghproxy.com/" bash xget -c 'xget_download https://github.com/cli/cli/releases/download/v2.53.0/gh_2.53.0_macOS_amd64.tar.gz gh.tar.gz'
+  bash xget -c 'set_git_mirror gitclone && git clone https://github.com/Homebrew/brew.git'
+  bash xget -c 'set_brew_mirror bfsu && show_brew_env'
+  bash xget -c 'xget_autoselect'
+EOF
+}
+
+# 支持直接执行：bash xget -c '<command>'
+if [[ "${1:-}" == "-c" ]]; then
+  shift
+  eval "$*"
+else
+  usage
+fi
