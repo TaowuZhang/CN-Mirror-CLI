@@ -1,4 +1,6 @@
-# cnmirror-cli – GitHub 加速下载与镜像切换工具
+# CN-Mirror-CLI – GitHub 加速下载与镜像切换工具
+
+> 注：项目已重命名为 CN-Mirror-CLI；命令脚本保持 `xget` 与 `xget-local`。
 
 > 注：项目已重命名为 cnmirror-cli；命令脚本保持 `xget` 与 `xget-local`。
 
