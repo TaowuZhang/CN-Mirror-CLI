@@ -1,0 +1,6 @@
+# temp & logs
+*.tmp
+*.log
+*.bak
+tmp/
+.DS_Store
