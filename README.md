@@ -1,3 +1,8 @@
+## 镜像自动刷新
+- 定时：每周一 11:00 (CST)；由 GitHub Actions 调度。
+- 本地刷新：`bash scripts/refresh_mirrors.sh`，生成 `mirrors.conf`；可选自动推送：`AUTO_PUSH=1 bash scripts/refresh_mirrors.sh`。
+- 脚本会自动清理临时目录，不产生多余文件；仓库用 `.gitignore` 忽略常见临时文件。
+
 ## 发布脚本（安全推送）
 - 推送前自动取消 git 镜像重写，避免镜像域推送失败。
 - 如未设置 `ALL_PROXY`，自动探测 `socks5h://127.0.0.1:{7890,1080}` 并用于推送。
