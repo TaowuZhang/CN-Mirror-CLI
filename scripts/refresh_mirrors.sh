@@ -78,3 +78,14 @@ if [[ "${AUTO_PUSH:-0}" == "1" ]]; then
     log "no changes to commit"
   fi
 fi
+
+# 本地自动推送（可选）：设置 AUTO_PUSH=1 时启用
+if [[ "${AUTO_PUSH:-0}" == "1" ]]; then
+  git add "$conf_path"
+  if ! git diff --cached --quiet; then
+    git commit -m "chore(mirrors): refresh GH_PROXY_LIST"
+    git push
+  else
+    log "no changes to commit"
+  fi
+fi
