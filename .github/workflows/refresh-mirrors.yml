@@ -2,7 +2,7 @@ name: Refresh Mirrors
 
 on:
   schedule:
-    - cron: '0 3 * * *'   # 每日 03:00 UTC（北京时区 11:00）
+    - cron: '0 3 * * 1'   # 每日 03:00 UTC（北京时区 11:00）
   workflow_dispatch: {}
 
 permissions:
