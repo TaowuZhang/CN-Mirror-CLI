@@ -1,3 +1,13 @@
+## 发布脚本（安全推送）
+- 推送前自动取消 git 镜像重写，避免镜像域推送失败。
+- 如未设置 `ALL_PROXY`，自动探测 `socks5h://127.0.0.1:{7890,1080}` 并用于推送。
+- 可选在推送后恢复国内镜像：`RESTORE_MIRROR=1 bash ./publish.sh`。
+- 默认推送当前分支到 `origin`。
+
+示例：
+- 正常推送：`bash ./publish.sh`
+- 推送后恢复镜像：`RESTORE_MIRROR=1 bash ./publish.sh`
+
 # CN-Mirror-CLI – GitHub 加速下载与镜像切换工具
 
 > 注：项目已重命名为 CN-Mirror-CLI；命令脚本保持 `xget` 与 `xget-local`。
