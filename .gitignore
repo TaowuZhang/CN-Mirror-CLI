@@ -8,3 +8,7 @@ tmp/
 # local config (do not commit secrets)
 xget.conf
 mirrors.conf
+ 
+# local personal docs (do not commit)
+*.local.md
+Xget使用指南.local.md
