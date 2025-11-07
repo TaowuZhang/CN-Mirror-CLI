@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Copy this file to xget.conf and fill with your values.
+# xget.conf is ignored by .gitignore — do NOT commit secrets.
+
+# Optional: Your Cloudflare Worker/Xget prefix (GHProxy-style concatenation)
+# Example: https://xget.example.workers.dev/
+XGET_PREFIX=""
+
+# Optional: Private auth header required by your Worker
+# e.g. "Authorization: Bearer <token>" or "X-Xget-Key: <your-secret>"
+# When set, CN-Mirror-CLI will attach this header for requests using XGET_PREFIX
+XGET_AUTH_HEADER=""
+
+# Default Homebrew mirror site (tuna|ustc|bfsu)
+XGET_BREW_MIRROR_DEFAULT="bfsu"

@@ -4,3 +4,7 @@
 *.bak
 tmp/
 .DS_Store
+
+# local config (do not commit secrets)
+xget.conf
+mirrors.conf

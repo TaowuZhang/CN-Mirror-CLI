@@ -3,6 +3,7 @@ set -euo pipefail
 
 # 可选：你的 Cloudflare Worker/Xget 前缀，例如：https://xget.example.workers.dev/
 XGET_PREFIX="${XGET_PREFIX:-}"
+XGET_AUTH_HEADER="${XGET_AUTH_HEADER:-}"
 
 # 配置文件加载（默认同目录 xget.conf）
 XGET_CONF_PATH="${XGET_CONF_PATH:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/xget.conf}"
@@ -37,6 +38,16 @@ function _proxy_url() {
   printf "%s%s" "$prefix" "$url"
 }
 
+# 在请求为 XGET_PREFIX 前缀时，返回私有授权头参数
+function _curl_auth_args_for_prefix() {
+  local current_prefix="$1"
+  local args=()
+  if [[ -n "$XGET_AUTH_HEADER" && -n "$XGET_PREFIX" && "$current_prefix" == "$XGET_PREFIX" ]]; then
+    args=( -H "$XGET_AUTH_HEADER" )
+  fi
+  printf '%s\n' "${args[@]}"
+}
+
 # 按优先级尝试下载（支持 GitHub release/raw/gist 等）
 function xget_download() {
   if [[ $# -lt 1 ]]; then
@@ -65,7 +76,9 @@ function xget_download() {
     fi
     tried+=("$try_url")
     log "GET $try_url -> $dest"
-    if curl -fL --connect-timeout 10 --retry 3 --retry-delay 1 -o "$dest" "$try_url"; then
+    # 仅当使用你自己的前缀时附加私有授权头
+    local auth_args=( $(_curl_auth_args_for_prefix "$p") )
+    if curl -fL --connect-timeout 10 --retry 3 --retry-delay 1 "${auth_args[@]}" -o "$dest" "$try_url"; then
       log "OK: $dest"
       return 0
     else
@@ -89,7 +102,9 @@ function xget_autoselect() {
     local u="$test_url"
     if [[ -n "$p" ]]; then u="$(_proxy_url "$p" "$test_url")"; fi
     local t
-    t=$(curl -w '%{time_total}' -o /dev/null -s -L --connect-timeout 5 --retry 1 "$u" || echo "inf")
+    # 为你的 XGET_PREFIX 候选添加私有授权头
+    local auth_args=( $(_curl_auth_args_for_prefix "$p") )
+    t=$(curl -w '%{time_total}' -o /dev/null -s -L --connect-timeout 5 --retry 1 "${auth_args[@]}" "$u" || echo "inf")
     line=$(printf "%s\t%s" "${p:-<origin>}" "$t")
     log "probe: $line"
     if [[ "$t" != "inf" ]]; then
@@ -124,7 +139,12 @@ function xget_clone() {
     mirror_repo="${repo/https:\/\/github.com\//https:\/\/gitclone.com\/github.com\/}"
   fi
   log "git clone $mirror_repo $*"
-  GIT_TRACE=1 git clone "$mirror_repo" "$@"
+  # 当使用你的 XGET_PREFIX 时，为 Git HTTP 请求附加授权头
+  if [[ -n "$XGET_AUTH_HEADER" && -n "$XGET_PREFIX" ]]; then
+    GIT_TRACE=1 git -c "http.extraHeader=$XGET_AUTH_HEADER" clone "$mirror_repo" "$@"
+  else
+    GIT_TRACE=1 git clone "$mirror_repo" "$@"
+  fi
 }
 
 # 设置/取消 Git 镜像重写

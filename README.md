@@ -58,17 +58,29 @@ bash ./CN-Mirror-CLI -c 'CN-Mirror-CLI_download https://github.com/cli/cli/relea
 ```
 ```
 
-### 配置文件：`xget.conf`
+### 配置文件：`xget.conf`（本地私有，不提交）
+仓库包含示例文件 `xget.conf.example`，请复制为 `xget.conf` 并填入你的私有配置。该文件已在 `.gitignore` 中忽略，不会提交到 GitHub。
+
 你可以在同目录创建 `xget.conf` 来设置默认前缀与默认 Homebrew 镜像。例如：
 ```bash
 # 自定义代理前缀（建议为你的 Cloudflare Worker）
 export XGET_PREFIX="https://xget.example.workers.dev/"
+
+# 可选：为你的 Worker 设置私有授权头（仅对 XGET_PREFIX 生效）
+# 示例：
+# export XGET_AUTH_HEADER="Authorization: Bearer <your-private-token>"
+# 或：
+# export XGET_AUTH_HEADER="X-Xget-Key: <your-secret>"
 
 # 默认 Homebrew 镜像站（tuna|ustc|bfsu）
 export XGET_BREW_MIRROR_DEFAULT="bfsu"
 ```
 
 脚本会在启动时自动加载该文件（如果存在）。也可通过环境变量 `XGET_CONF_PATH` 指定自定义路径。本地版不会使用 `XGET_PREFIX`，仅依赖国内镜像。
+
+安全建议：
+- 不要把真实的 `xget.conf` 提交到仓库；使用 `xget.conf.example` 作为模板。
+- 在 Cloudflare Worker 侧要求自定义请求头（如 `Authorization` 或 `X-Xget-Key`），并仅对带该头的请求放行，从而保证只有你能使用你的域名。
 
 ### 常用命令示例
 ```bash
@@ -98,6 +110,8 @@ bash ./CN-Mirror-CLI -c 'npm_mirror_unset'
 如果你部署了自己的 Cloudflare Worker（例如 `https://xget.example.workers.dev/`），可直接作为 `XGET_PREFIX` 使用：
 ```bash
 export XGET_PREFIX="https://xget.example.workers.dev/"
+# 如需私有访问，在 Worker 校验自定义请求头，并在本地设置：
+export XGET_AUTH_HEADER="Authorization: Bearer <your-private-token>"
 bash ./CN-Mirror-CLI -c 'CN-Mirror-CLI_download https://github.com/user/repo/releases/download/v1.0.0/app.tar.gz app.tar.gz'
 ```
 
@@ -105,6 +119,7 @@ bash ./CN-Mirror-CLI -c 'CN-Mirror-CLI_download https://github.com/user/repo/rel
 - 透传 `Range`、`ETag`/`If-None-Match`，提升大文件断点续传与缓存命中率
 - 对 `releases`、`raw`、`gist` 等路径设置合理 TTL，避免缓存过期过短或过长
 - 限速与配额管理，保护额度与成本；拒绝代理私有仓库授权请求（安全）
+ - 私有访问：校验自定义授权头或绑定允许来源；例如：无该头或值不匹配则返回 403。
 
 如果需要，我可以提供最小可用的 Worker 模板代码。Xget 的完整实现与技术解析可参考其仓库与文档（见上方链接）。
 
