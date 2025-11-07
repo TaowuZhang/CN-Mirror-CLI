@@ -17,7 +17,12 @@ trap cleanup EXIT
 # 候选镜像（可按需扩展）
 CANDIDATES=(
   "https://mirror.ghproxy.com/"
+  "https://cf.ghproxy.cc/"
+  "https://gh-proxy.com/"
+  "https://v6.gh-proxy.com/"
   "https://gh.api.99988866.xyz/"
+  "https://ghproxy.1888866.xyz/"
+  "https://gh.ddlc.top/"
 )
 
 # 测试 URL（小资源，返回稳定），通过镜像前缀代理到 GitHub 进行测试
@@ -34,13 +39,15 @@ for p in "${CANDIDATES[@]}"; do
   latency=${res##*\t}
   # 可用性评分：2xx/3xx 为 0（最佳）、否则 1
   usable=1
-  if [[ "$code" =~ ^2|3 ]]; then usable=0; fi
+  case "$code" in
+    2*|3*) usable=0 ;;
+  esac
   printf "%s\t%s\t%s\t%s\n" "$usable" "$latency" "$code" "$p" >> "$rank_file"
   log "probe: $p code=$code latency=${latency}s usable=$usable"
 done
 
-# 排序：先可用，再按延迟升序
-mapfile -t sorted < <(sort -t $'\t' -k1,1n -k2,2n "$rank_file" | awk -F '\t' '{print $4}')
+# 排序：先可用，再按延迟升序（macOS bash 3.x 兼容，不使用 mapfile）
+sorted_list=$(sort -t $'\t' -k1,1n -k2,2n "$rank_file" | awk -F '\t' '{print $4}')
 
 # 生成 mirrors.conf（仅覆盖 GH_PROXY_LIST 区域）
 conf_path="$ROOT_DIR/mirrors.conf"
@@ -49,9 +56,9 @@ conf_path="$ROOT_DIR/mirrors.conf"
   echo "# Do not edit manually; edit scripts/refresh_mirrors.sh instead."
   echo ""
   echo "GH_PROXY_LIST=("
-  for p in "${sorted[@]}"; do
-    echo "  \"$p\""
-  done
+  while IFS= read -r p; do
+    [ -n "$p" ] && echo "  \"$p\""
+  done <<< "$sorted_list"
   echo ")"
 } > "$conf_path"
 

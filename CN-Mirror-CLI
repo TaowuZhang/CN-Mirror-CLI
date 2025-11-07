@@ -12,10 +12,22 @@ if [[ -f "$XGET_CONF_PATH" ]]; then
   source "$XGET_CONF_PATH"
 fi
 
+# 额外加载自动生成的镜像配置（由 scripts/refresh_mirrors.sh 生成）
+MIRRORS_CONF_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/mirrors.conf"
+if [[ -f "$MIRRORS_CONF_PATH" ]]; then
+  # shellcheck disable=SC1090
+  source "$MIRRORS_CONF_PATH"
+fi
+
 # GHProxy 前缀列表（按优先级）
 GH_PROXY_LIST=(
   "https://mirror.ghproxy.com/"
+  "https://cf.ghproxy.cc/"
+  "https://gh-proxy.com/"
+  "https://v6.gh-proxy.com/"
   "https://gh.api.99988866.xyz/"
+  "https://ghproxy.1888866.xyz/"
+  "https://gh.ddlc.top/"
 )
 
 # Homebrew 瓶子及 Git 仓库镜像地址
